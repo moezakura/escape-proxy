@@ -25,35 +25,34 @@ func main() {
 	for {
 		conn, _ := listen.Accept()
 		go func() {
+			defer func() {
+				_ = conn.Close()
+			}()
+
 			buff := make([]byte, 500)
 			num, err := conn.Read(buff)
 			if err != nil {
-				_ = conn.Close()
 				return
 			}
 			length, err := strconv.Atoi(string(buff[:num]))
 			if err != nil {
-				_ = conn.Close()
 				return
 			}
 
 			buff = make([]byte, length)
 			num, err = conn.Read(buff)
 			if err != nil {
-				_ = conn.Close()
 				return
 			}
 			var connectPacket escapeProxy.ConnectPacket
 			err = json.Unmarshal(buff[:num], &connectPacket)
 			if err != nil {
-				_ = conn.Close()
 				return
 			}
 
 			connectAddr := connectPacket.Addr
 			remoteConn, err := net.Dial("tcp", connectAddr)
 			if err != nil {
-				_ = conn.Close()
 				return
 			}
 			defer func() {
