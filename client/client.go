@@ -16,6 +16,7 @@ import (
 var (
 	proxyAddress  = flag.String("p", "", "proxy server address ex: proxy.mox:8080")
 	serverAddress = flag.String("s", "", "gateway proxy server address ex: proxy.mox:8080")
+	listenPort    = flag.String("l", "", "local socks port es: 8080")
 )
 
 func main() {
@@ -66,8 +67,7 @@ func main() {
 		panic(err)
 	}
 
-	// Create SOCKS5 proxy on localhost port 8000
-	if err := server.ListenAndServe("tcp", "127.0.0.1:9999"); err != nil {
+	if err := server.ListenAndServe("tcp", "127.0.0.1:"+*listenPort); err != nil {
 		panic(err)
 	}
 }
