@@ -4,6 +4,7 @@ import (
 	".."
 	"encoding/json"
 	"flag"
+	"fmt"
 	"golang.org/x/sync/errgroup"
 	"net"
 	"strconv"
@@ -21,6 +22,7 @@ func main() {
 	flag.Parse()
 
 	listen, _ := net.Listen("tcp", "0.0.0.0:"+*port)
+	fmt.Printf("Listen 0.0.0.0:%s\n", *port)
 
 	for {
 		conn, _ := listen.Accept()
