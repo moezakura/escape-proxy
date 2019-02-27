@@ -1,4 +1,4 @@
-package escapeProxy
+package model
 
 type ConnectPacket struct {
 	Addr string

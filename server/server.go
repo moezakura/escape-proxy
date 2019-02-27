@@ -1,10 +1,10 @@
 package main
 
 import (
-	".."
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/moezakura/EscapeProxy/model"
 	"golang.org/x/sync/errgroup"
 	"net"
 	"strconv"
@@ -46,7 +46,7 @@ func main() {
 			if err != nil {
 				return
 			}
-			var connectPacket escapeProxy.ConnectPacket
+			var connectPacket model.ConnectPacket
 			err = json.Unmarshal(buff[:num], &connectPacket)
 			if err != nil {
 				return

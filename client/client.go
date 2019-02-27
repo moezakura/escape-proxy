@@ -1,22 +1,22 @@
 package main
 
 import (
-	".."
 	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/armon/go-socks5"
+	"github.com/moezakura/EscapeProxy/model"
 	"net"
 	"regexp"
 	"strings"
 )
 
 var (
-	proxyAddress  = flag.String("p", "", "proxy server address ex: proxy.mox:8080")
-	serverAddress = flag.String("s", "", "gateway proxy server address ex: proxy.mox:8080")
-	listenPort    = flag.String("l", "", "local socks port es: 8080")
+	proxyAddress  = flag.String("p", "8080", "proxy server address ex: proxy.mox:8080")
+	serverAddress = flag.String("s", "8080", "gateway proxy server address ex: proxy.mox:8080")
+	listenPort    = flag.String("l", "9999", "local socks port es: 8080")
 )
 
 func main() {
@@ -33,9 +33,12 @@ func main() {
 			fmt.Printf("next: %s\n", next_proxy)
 
 			n, e := net.Dial("tcp", proxy)
+			if e != nil {
+				return nil, e
+			}
 			num, err := n.Write([]byte("CONNECT " + next_proxy + " HTTP/1.1\r\n\r\n"))
 			if err != nil {
-				return nil, e
+				return nil, err
 			}
 
 			buff := make([]byte, 1000)
@@ -51,7 +54,7 @@ func main() {
 				return nil, errors.New("access error")
 			}
 
-			jsonBytes, err := json.Marshal(escapeProxy.ConnectPacket{
+			jsonBytes, err := json.Marshal(model.ConnectPacket{
 				Addr: addr,
 			})
 			lengthPacket := fmt.Sprintf("%0500d", len(jsonBytes))
