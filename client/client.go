@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"github.com/armon/go-socks5"
 	"github.com/moezakura/EscapeProxy/model"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"net"
 	"regexp"
 	"strings"
@@ -17,16 +19,29 @@ var (
 	proxyAddress  = flag.String("p", "8080", "proxy server address ex: proxy.mox:8080")
 	serverAddress = flag.String("s", "8080", "gateway proxy server address ex: proxy.mox:8080")
 	listenPort    = flag.String("l", "9999", "local socks port es: 8080")
+	configPath    = flag.String("c", "", "./config.yaml")
 )
 
 func main() {
 	flag.Parse()
+
+	buf, err := ioutil.ReadFile(*configPath)
+	if err != nil {
+		panic(err)
+	}
+	var config model.ConfigYaml
+	err = yaml.Unmarshal(buf, &config)
+	if err != nil {
+		panic(err)
+	}
+
 
 	reg := regexp.MustCompile(`HTTP/(1\.0|1\.1|2\.0) 200 Connection established`)
 	proxy := *proxyAddress
 	next_proxy := *serverAddress
 
 	conf := &socks5.Config{
+		Credentials: NewAuth(config.Users),
 		Dial: func(ctx context.Context, network, addr string) (conn net.Conn, e error) {
 			fmt.Printf("network: %s\n", network)
 			fmt.Printf("addr: %s\n", addr)
