@@ -31,6 +31,8 @@ Use yaml for config.
 ```
 # authMode[true|false]
 auth: true
+# Whether to allow access automatically bypassing the Proxy [true|false]
+auto_direct_connect: true
 # http proxy host[hostName:port]
 proxy: http.proxy:3128 
 # escape proxy server[hostName:port]

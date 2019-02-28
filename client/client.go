@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/armon/go-socks5"
 	"github.com/moezakura/escape-proxy/model"
 	"gopkg.in/yaml.v2"
-	"github.com/armon/go-socks5"
 	"io/ioutil"
 	"net"
 	"regexp"
@@ -58,20 +58,22 @@ func Client(configPath string) {
 		retry:
 			n, e := net.DialTimeout(network, connectAddr, time.Second*5)
 			if e != nil {
-				retryCount++
-				if retryCount < 3 {
-					if connectMode == model.CONNECT_MODE_PROXY {
-						connectAddr = addr
-						_connectMode = model.CONNECT_MODE_DIRECT
-						fmt.Printf("!CHANGE [%d]", retryCount)
-						printRoute(_connectMode, addr)
-						goto retry
-					} else if connectMode == model.CONNECT_MODE_DIRECT {
-						connectAddr = next_proxy
-						_connectMode = model.CONNECT_MODE_PROXY
-						fmt.Printf("!CHANGE [%d]", retryCount)
-						printRoute(_connectMode, addr)
-						goto retry
+				if config.AutoDirectConnect {
+					retryCount++
+					if retryCount < 3 {
+						if connectMode == model.CONNECT_MODE_PROXY {
+							connectAddr = addr
+							_connectMode = model.CONNECT_MODE_DIRECT
+							fmt.Printf("!CHANGE [%d]", retryCount)
+							printRoute(_connectMode, addr)
+							goto retry
+						} else if connectMode == model.CONNECT_MODE_DIRECT {
+							connectAddr = next_proxy
+							_connectMode = model.CONNECT_MODE_PROXY
+							fmt.Printf("!CHANGE [%d]", retryCount)
+							printRoute(_connectMode, addr)
+							goto retry
+						}
 					}
 				}
 
