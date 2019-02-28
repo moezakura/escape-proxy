@@ -1,14 +1,13 @@
-package main
+package client
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
-	"github.com/armon/go-socks5"
 	"github.com/moezakura/escape-proxy/model"
 	"gopkg.in/yaml.v2"
+	"github.com/armon/go-socks5"
 	"io/ioutil"
 	"net"
 	"regexp"
@@ -17,28 +16,31 @@ import (
 )
 
 var (
-	proxyAddress                     = flag.String("p", "8080", "proxy server address ex: proxy.mox:8080")
-	serverAddress                    = flag.String("s", "8080", "gateway proxy server address ex: proxy.mox:8080")
-	listenPort                       = flag.String("l", "9999", "local socks port es: 8080")
-	configPath                       = flag.String("c", "", "./config.yaml")
-	connectMode   model.CONNECT_MODE = model.CONNECT_MODE_PROXY
+	config      model.ConfigYaml
+	connectMode model.CONNECT_MODE = model.CONNECT_MODE_PROXY
 )
 
-func main() {
-	flag.Parse()
-
-	buf, err := ioutil.ReadFile(*configPath)
+func Client(configPath string) {
+	buf, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		panic(err)
 	}
-	var config model.ConfigYaml
 	err = yaml.Unmarshal(buf, &config)
 	if err != nil {
 		panic(err)
 	}
 
-	proxy := *proxyAddress
-	next_proxy := *serverAddress
+	proxy := config.ProxyServer
+	next_proxy := config.GatewayServer
+	if len(proxy) == 0 {
+		panic("config has no proxy setting.")
+	}
+	if len(next_proxy) == 0 {
+		panic("config has no gateway setting.")
+	}
+	if len(next_proxy) == 0 {
+		panic("config has no listen setting.")
+	}
 
 	conf := &socks5.Config{
 		Credentials: NewAuth(config.Users),
@@ -54,7 +56,7 @@ func main() {
 			retryCount := 0
 			_connectMode := connectMode
 		retry:
-			n, e := net.DialTimeout(network, connectAddr, time.Second * 5)
+			n, e := net.DialTimeout(network, connectAddr, time.Second*5)
 			if e != nil {
 				retryCount++
 				if retryCount < 3 {
@@ -95,14 +97,14 @@ func main() {
 		panic(err)
 	}
 
-	if err := server.ListenAndServe("tcp", "127.0.0.1:"+*listenPort); err != nil {
+	if err := server.ListenAndServe("tcp", config.Listen); err != nil {
 		panic(err)
 	}
 }
 
 func printRoute(mode model.CONNECT_MODE, addr string) {
-	proxy := *proxyAddress
-	next_proxy := *serverAddress
+	proxy := config.ProxyServer
+	next_proxy := config.GatewayServer
 
 	if mode == model.CONNECT_MODE_DIRECT {
 		fmt.Printf("ROUTE: localhost -> %s\n", addr)
@@ -113,7 +115,7 @@ func printRoute(mode model.CONNECT_MODE, addr string) {
 
 func proxyConnect(n net.Conn, addr string) (err error) {
 	reg := regexp.MustCompile(`HTTP/(1\.0|1\.1|2\.0) 200 Connection established`)
-	next_proxy := *serverAddress
+	next_proxy := config.GatewayServer
 
 	num, err := n.Write([]byte("CONNECT " + next_proxy + " HTTP/1.1\r\n\r\n"))
 	if err != nil {

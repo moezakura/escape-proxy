@@ -72,6 +72,7 @@ fabric.properties
 #bin
 server/server
 client/client
+escape-proxy
 
 #config
 config.yaml

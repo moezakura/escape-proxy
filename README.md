@@ -8,7 +8,6 @@ In this application it is possible to build socks 5 proxy via squid.
 ```
 go get github.com/moezakura/escape-proxy 
 cd $GOPATH/github.com/moezakura/escape-proxy
-make deps
 make build
 ```
 

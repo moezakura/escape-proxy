@@ -1,8 +1,7 @@
-package main
+package server
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"github.com/moezakura/escape-proxy/model"
 	"golang.org/x/sync/errgroup"
@@ -14,15 +13,9 @@ const (
 	BUFFER_SIZE = 0xFFFF
 )
 
-var (
-	port = flag.String("p", "", "port ex:443")
-)
-
-func main() {
-	flag.Parse()
-
-	listen, _ := net.Listen("tcp", "0.0.0.0:"+*port)
-	fmt.Printf("Listen 0.0.0.0:%s\n", *port)
+func Server(port string) {
+	listen, _ := net.Listen("tcp", "0.0.0.0:"+port)
+	fmt.Printf("Listen 0.0.0.0:%s\n", port)
 
 	for {
 		conn, _ := listen.Accept()
