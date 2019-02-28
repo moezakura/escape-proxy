@@ -1,6 +1,6 @@
 package main
 
-import "github.com/moezakura/EscapeProxy/model"
+import "github.com/moezakura/escape-proxy/model"
 
 type Auth struct {
 	users []model.AuthUsers

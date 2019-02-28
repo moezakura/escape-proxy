@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/moezakura/EscapeProxy/model"
+	"github.com/moezakura/escape-proxy/model"
 	"golang.org/x/sync/errgroup"
 	"net"
 	"strconv"

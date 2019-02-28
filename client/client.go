@@ -7,7 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/armon/go-socks5"
-	"github.com/moezakura/EscapeProxy/model"
+	"github.com/moezakura/escape-proxy/model"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net"
