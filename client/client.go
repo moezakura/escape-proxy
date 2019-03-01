@@ -51,7 +51,27 @@ func Client(configPath string) {
 			if connectMode == model.CONNECT_MODE_DIRECT {
 				connectAddr = addr
 			}
-			printRoute(connectMode, addr)
+
+			isForceDirect := false
+			for _, ipRange := range config.ExcludeIps {
+				targetIp, _, err := net.SplitHostPort(addr)
+				if err != nil {
+					return nil, err
+				}
+				if isContainIp(ipRange, targetIp){
+					fmt.Printf("EXCLUDE : %s in %s\n", ipRange, targetIp)
+					connectAddr = addr
+					isForceDirect = true
+					break
+				}
+			}
+
+			if !isForceDirect {
+				printRoute(connectMode, addr)
+			}else{
+				fmt.Printf("FORCE ")
+				printRoute(model.CONNECT_MODE_DIRECT, addr)
+			}
 
 			retryCount := 0
 			_connectMode := connectMode
@@ -83,7 +103,7 @@ func Client(configPath string) {
 				connectMode = _connectMode
 			}
 
-			if connectMode == model.CONNECT_MODE_PROXY {
+			if connectMode == model.CONNECT_MODE_PROXY && !isForceDirect {
 				err := proxyConnect(n, addr)
 				if err != nil {
 					return nil, err
@@ -102,6 +122,16 @@ func Client(configPath string) {
 	if err := server.ListenAndServe("tcp", config.Listen); err != nil {
 		panic(err)
 	}
+}
+
+func isContainIp(cidr, ip string) bool {
+	_, cidrNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return false
+	}
+
+	targetIP := net.ParseIP(ip)
+	return cidrNet.Contains(targetIP)
 }
 
 func printRoute(mode model.CONNECT_MODE, addr string) {

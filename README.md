@@ -31,15 +31,26 @@ Use yaml for config.
 ```
 # authMode[true|false]
 auth: true
+
 # Whether to allow access automatically bypassing the Proxy [true|false]
 auto_direct_connect: true
+
 # http proxy host[hostName:port]
 proxy: http.proxy:3128 
+
 # escape proxy server[hostName:port]
 # recommend 443 (Many squids prohibit the connect method except for the 443 port.)
 gateway: escape-proxy.server:443
+
 # listen socks5 proxy[bindAddress:port]
 listen: localhost:9999
+
+# exclude ip (These are connected directly from Socks 5 Proxy.)
+exclude:
+  - 192.168.0.0/16
+  - 10.0.0.0/8
+  - 172.16.0.0/11
+
 # It is specified when auth mode is true. (authentication of listening socks 5)
 users:
 # auth user id
