@@ -6,7 +6,8 @@ type ConfigYaml struct {
 	ProxyServer       string      `yaml:"proxy"`
 	GatewayServer     string      `yaml:"gateway"`
 	Listen            string      `yaml:"listen"`
-	ExcludeIps        []string      `yaml:"exclude"`
+	LogMode           string      `yaml:"log_mode"`
+	ExcludeIps        []string    `yaml:"exclude"`
 	Users             []AuthUsers `yaml:"users"`
 }
 

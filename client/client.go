@@ -9,6 +9,7 @@ import (
 	"github.com/moezakura/escape-proxy/model"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"log"
 	"net"
 	"regexp"
 	"strings"
@@ -41,9 +42,9 @@ func Client(configPath string) {
 
 	conf := &socks5.Config{
 		Dial: func(ctx context.Context, network, addr string) (conn net.Conn, e error) {
-			fmt.Println("-------------")
+			logPrintText("---------")
 			connectAddr := proxy
-			fmt.Printf("CONNECT MODE: %s\n", connectMode.String())
+			logPrint("CONNECT MODE", connectMode.String())
 			if connectMode == model.CONNECT_MODE_DIRECT {
 				connectAddr = addr
 			}
@@ -55,7 +56,10 @@ func Client(configPath string) {
 					return nil, err
 				}
 				if isContainIp(ipRange, targetIp) {
-					fmt.Printf("EXCLUDE : %s in %s\n", ipRange, targetIp)
+					logPrint("EXCLUDE", map[string]string{
+						"target": targetIp,
+						"rule":   ipRange,
+					})
 					connectAddr = addr
 					isForceDirect = true
 					break
@@ -65,8 +69,7 @@ func Client(configPath string) {
 			if !isForceDirect {
 				printRoute(connectMode, addr)
 			} else {
-				fmt.Printf("FORCE ")
-				printRoute(model.CONNECT_MODE_DIRECT, addr)
+				printRouteWithForce(model.CONNECT_MODE_DIRECT, addr)
 			}
 
 			retryCount := 0
@@ -80,13 +83,19 @@ func Client(configPath string) {
 						if connectMode == model.CONNECT_MODE_PROXY {
 							connectAddr = addr
 							_connectMode = model.CONNECT_MODE_DIRECT
-							fmt.Printf("!CHANGE [%d]", retryCount)
+							logPrint("ROUTE CHANGE", map[string]interface{}{
+								"mode":  _connectMode.String(),
+								"count": retryCount,
+							})
 							printRoute(_connectMode, addr)
 							goto retry
 						} else if connectMode == model.CONNECT_MODE_DIRECT {
 							connectAddr = next_proxy
 							_connectMode = model.CONNECT_MODE_PROXY
-							fmt.Printf("!CHANGE [%d]", retryCount)
+							logPrint("ROUTE CHANGE", map[string]interface{}{
+								"mode":  _connectMode.String(),
+								"count": retryCount,
+							})
 							printRoute(_connectMode, addr)
 							goto retry
 						}
@@ -106,7 +115,7 @@ func Client(configPath string) {
 				}
 			}
 
-			fmt.Println("CONNECT: OK!")
+			logPrint("CONNECT", "OK")
 			return n, nil
 		},
 	}
@@ -116,10 +125,20 @@ func Client(configPath string) {
 		conf.AuthMethods = make([]socks5.Authenticator, 0)
 	}
 
+	if config.LogMode == "json" {
+		conf.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
+	}
+
 	server, err := socks5.New(conf)
 	if err != nil {
 		panic(err)
 	}
+
+	logPrint("START UP", map[string]interface{}{
+		"listen":  config.Listen,
+		"proxy":   config.ProxyServer,
+		"gateway": config.GatewayServer,
+	})
 
 	if err := server.ListenAndServe("tcp", config.Listen); err != nil {
 		panic(err)
@@ -137,13 +156,43 @@ func isContainIp(cidr, ip string) bool {
 }
 
 func printRoute(mode model.CONNECT_MODE, addr string) {
+	printRouteLog(mode, addr, false)
+}
+
+func printRouteWithForce(mode model.CONNECT_MODE, addr string) {
+	printRouteLog(mode, addr, true)
+}
+
+func printRouteLog(mode model.CONNECT_MODE, addr string, isForce bool) {
 	proxy := config.ProxyServer
 	next_proxy := config.GatewayServer
 
+	printText := "";
+	routeTitle := "ROUTE "
+	if (isForce) {
+		routeTitle += "(FORCE) "
+	}
 	if mode == model.CONNECT_MODE_DIRECT {
-		fmt.Printf("ROUTE: localhost -> %s\n", addr)
+		printText = fmt.Sprintf("%s: localhost -> %s\n", routeTitle, addr)
 	} else {
-		fmt.Printf("ROUTE: localhost -> %s -> %s -> %s\n", proxy, next_proxy, addr)
+		printText = fmt.Sprintf("%s: localhost -> %s -> %s -> %s\n", routeTitle, proxy, next_proxy, addr)
+	}
+
+	if config.LogMode == "json" {
+		steps := []string{"localhost"}
+		if mode == model.CONNECT_MODE_PROXY {
+			steps = append(steps, proxy)
+			steps = append(steps, next_proxy)
+		}
+		steps = append(steps, addr)
+
+		logPrint("ROUTE", map[string]interface{}{
+			"isForce": isForce,
+			"steps":   steps,
+			"text":    printText,
+		})
+	} else {
+		logPrintText(printText)
 	}
 }
 
@@ -175,4 +224,24 @@ func proxyConnect(n net.Conn, addr string) (err error) {
 	_, err = n.Write([]byte(lengthPacket))
 	num, err = n.Write(jsonBytes)
 	return nil
+}
+
+func logPrint(title string, value interface{}) {
+	if config.LogMode == "json" {
+		log := map[string]interface{}{
+			"title": title,
+			"value": value,
+		}
+		jsonByte, _ := json.Marshal(log)
+		fmt.Println(string(jsonByte))
+	} else {
+		fmt.Printf("%s: %+v\n", title, value)
+	}
+}
+
+func logPrintText(text string) {
+	if config.LogMode == "json" {
+		return
+	}
+	fmt.Println(text)
 }

@@ -45,6 +45,9 @@ gateway: escape-proxy.server:443
 # listen socks5 proxy[bindAddress:port]
 listen: localhost:9999
 
+# output log mode [json|text]
+log_mode: json
+
 # exclude ip (These are connected directly from Socks 5 Proxy.)
 exclude:
   - 192.168.0.0/16
