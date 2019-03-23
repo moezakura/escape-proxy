@@ -173,9 +173,9 @@ func printRouteLog(mode model.CONNECT_MODE, addr string, isForce bool) {
 		routeTitle += "(FORCE) "
 	}
 	if mode == model.CONNECT_MODE_DIRECT {
-		printText = fmt.Sprintf("%s: localhost -> %s\n", routeTitle, addr)
+		printText = fmt.Sprintf("%s: localhost -> %s", routeTitle, addr)
 	} else {
-		printText = fmt.Sprintf("%s: localhost -> %s -> %s -> %s\n", routeTitle, proxy, next_proxy, addr)
+		printText = fmt.Sprintf("%s: localhost -> %s -> %s -> %s", routeTitle, proxy, next_proxy, addr)
 	}
 
 	if config.LogMode == "json" {
@@ -213,7 +213,7 @@ func proxyConnect(n net.Conn, addr string) (err error) {
 
 	res := strings.Replace(string(buff[:num]), "\r\n", "", -1)
 	if !reg.MatchString(res) {
-		fmt.Println("CONNECT: NG!")
+		logPrint("CONNECT", "NG")
 		return errors.New("access error")
 	}
 
@@ -228,14 +228,15 @@ func proxyConnect(n net.Conn, addr string) (err error) {
 
 func logPrint(title string, value interface{}) {
 	if config.LogMode == "json" {
-		log := map[string]interface{}{
+		_log := map[string]interface{}{
 			"title": title,
 			"value": value,
 		}
-		jsonByte, _ := json.Marshal(log)
+		jsonByte, _ := json.Marshal(_log)
 		fmt.Println(string(jsonByte))
 	} else {
-		fmt.Printf("%s: %+v\n", title, value)
+		text := fmt.Sprintf("%s: %+v", title, value)
+		fmt.Println(text)
 	}
 }
 
