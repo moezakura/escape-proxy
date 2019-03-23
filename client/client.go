@@ -38,12 +38,8 @@ func Client(configPath string) {
 	if len(next_proxy) == 0 {
 		panic("config has no gateway setting.")
 	}
-	if len(next_proxy) == 0 {
-		panic("config has no listen setting.")
-	}
 
 	conf := &socks5.Config{
-		Credentials: NewAuth(config.Users),
 		Dial: func(ctx context.Context, network, addr string) (conn net.Conn, e error) {
 			fmt.Println("-------------")
 			connectAddr := proxy
@@ -58,7 +54,7 @@ func Client(configPath string) {
 				if err != nil {
 					return nil, err
 				}
-				if isContainIp(ipRange, targetIp){
+				if isContainIp(ipRange, targetIp) {
 					fmt.Printf("EXCLUDE : %s in %s\n", ipRange, targetIp)
 					connectAddr = addr
 					isForceDirect = true
@@ -68,7 +64,7 @@ func Client(configPath string) {
 
 			if !isForceDirect {
 				printRoute(connectMode, addr)
-			}else{
+			} else {
 				fmt.Printf("FORCE ")
 				printRoute(model.CONNECT_MODE_DIRECT, addr)
 			}
@@ -114,6 +110,12 @@ func Client(configPath string) {
 			return n, nil
 		},
 	}
+
+	if config.Auth {
+		conf.Credentials = NewAuth(config.Auth, config.Users)
+		conf.AuthMethods = make([]socks5.Authenticator, 0)
+	}
+
 	server, err := socks5.New(conf)
 	if err != nil {
 		panic(err)
