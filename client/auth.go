@@ -1,8 +1,8 @@
 package client
 
 import (
-	"fmt"
 	"github.com/moezakura/escape-proxy/model"
+	"net"
 )
 
 type Auth struct {
@@ -17,9 +17,8 @@ func NewAuth(isAuth bool, users []model.AuthUsers) *Auth {
 	}
 }
 
-func (a *Auth) Valid(user, password string) bool {
+func (a *Auth) Authenticate(user, password string, addr net.Addr) bool {
 	if !a.isAuth {
-		fmt.Println(">>>")
 		return true
 	}
 

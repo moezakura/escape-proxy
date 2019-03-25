@@ -1,11 +1,10 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/armon/go-socks5"
+	"github.com/fangdingjun/socks-go"
 	"github.com/moezakura/escape-proxy/model"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -19,6 +18,9 @@ import (
 var (
 	config      model.ConfigYaml
 	connectMode model.CONNECT_MODE = model.CONNECT_MODE_PROXY
+
+	proxy      string
+	next_proxy string
 )
 
 func Client(configPath string) {
@@ -31,8 +33,8 @@ func Client(configPath string) {
 		panic(err)
 	}
 
-	proxy := config.ProxyServer
-	next_proxy := config.GatewayServer
+	proxy = config.ProxyServer
+	next_proxy = config.GatewayServer
 	if len(proxy) == 0 {
 		panic("config has no proxy setting.")
 	}
@@ -40,97 +42,11 @@ func Client(configPath string) {
 		panic("config has no gateway setting.")
 	}
 
-	conf := &socks5.Config{
-		Dial: func(ctx context.Context, network, addr string) (conn net.Conn, e error) {
-			logPrintText("---------")
-			connectAddr := proxy
-			logPrint("CONNECT MODE", connectMode.String())
-			if connectMode == model.CONNECT_MODE_DIRECT {
-				connectAddr = addr
-			}
-
-			isForceDirect := false
-			for _, ipRange := range config.ExcludeIps {
-				targetIp, _, err := net.SplitHostPort(addr)
-				if err != nil {
-					return nil, err
-				}
-				if isContainIp(ipRange, targetIp) {
-					logPrint("EXCLUDE", map[string]string{
-						"target": targetIp,
-						"rule":   ipRange,
-					})
-					connectAddr = addr
-					isForceDirect = true
-					break
-				}
-			}
-
-			if !isForceDirect {
-				printRoute(connectMode, addr)
-			} else {
-				printRouteWithForce(model.CONNECT_MODE_DIRECT, addr)
-			}
-
-			retryCount := 0
-			_connectMode := connectMode
-		retry:
-			n, e := net.DialTimeout(network, connectAddr, time.Second*5)
-			if e != nil {
-				if config.AutoDirectConnect {
-					retryCount++
-					if retryCount < 3 {
-						if connectMode == model.CONNECT_MODE_PROXY {
-							connectAddr = addr
-							_connectMode = model.CONNECT_MODE_DIRECT
-							logPrint("ROUTE CHANGE", map[string]interface{}{
-								"mode":  _connectMode.String(),
-								"count": retryCount,
-							})
-							printRoute(_connectMode, addr)
-							goto retry
-						} else if connectMode == model.CONNECT_MODE_DIRECT {
-							connectAddr = next_proxy
-							_connectMode = model.CONNECT_MODE_PROXY
-							logPrint("ROUTE CHANGE", map[string]interface{}{
-								"mode":  _connectMode.String(),
-								"count": retryCount,
-							})
-							printRoute(_connectMode, addr)
-							goto retry
-						}
-					}
-				}
-
-				return nil, e
-			}
-			if retryCount > 0 {
-				connectMode = _connectMode
-			}
-
-			if connectMode == model.CONNECT_MODE_PROXY && !isForceDirect {
-				err := proxyConnect(n, addr)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			logPrint("CONNECT", "OK")
-			return n, nil
-		},
-	}
-
-	if config.Auth {
-		conf.Credentials = NewAuth(config.Auth, config.Users)
-		conf.AuthMethods = make([]socks5.Authenticator, 0)
-	}
-
-	if config.LogMode == "json" {
-		conf.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
-	}
-
-	server, err := socks5.New(conf)
+	conn, err := net.Listen("tcp", config.Listen)
 	if err != nil {
+		logPrint("START ERROR", map[string]interface{}{
+			"message": err.Error(),
+		})
 		panic(err)
 	}
 
@@ -140,9 +56,105 @@ func Client(configPath string) {
 		"gateway": config.GatewayServer,
 	})
 
-	if err := server.ListenAndServe("tcp", config.Listen); err != nil {
-		panic(err)
+	for {
+		c, err := conn.Accept()
+		if err != nil {
+			logPrint("PROXY CONNECTION ERROR", map[string]interface{}{
+				"message": err.Error(),
+			})
+			continue
+		}
+
+		s := socks.Conn{
+			Conn: c,
+			Dial: dialFunc,
+		}
+
+		if config.Auth {
+			s.Auth = NewAuth(config.Auth, config.Users)
+		}
+
+		log.SetOutput(ioutil.Discard)
+		go s.Serve()
 	}
+}
+
+func dialFunc(network, addr string) (conn net.Conn, e error) {
+	logPrintText("---------")
+	connectAddr := proxy
+	logPrint("CONNECT MODE", connectMode.String())
+	if connectMode == model.CONNECT_MODE_DIRECT {
+		connectAddr = addr
+	}
+
+	isForceDirect := false
+	for _, ipRange := range config.ExcludeIps {
+		targetIp, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, err
+		}
+		if isContainIp(ipRange, targetIp) {
+			logPrint("EXCLUDE", map[string]string{
+				"target": targetIp,
+				"rule":   ipRange,
+			})
+			connectAddr = addr
+			isForceDirect = true
+			break
+		}
+	}
+
+	if !isForceDirect {
+		printRoute(connectMode, addr)
+	} else {
+		printRouteWithForce(model.CONNECT_MODE_DIRECT, addr)
+	}
+
+	retryCount := 0
+	_connectMode := connectMode
+retry:
+	n, e := net.DialTimeout(network, connectAddr, time.Second*5)
+	if e != nil {
+		if config.AutoDirectConnect {
+			retryCount++
+			if retryCount < 3 {
+				if connectMode == model.CONNECT_MODE_PROXY {
+					connectAddr = addr
+					_connectMode = model.CONNECT_MODE_DIRECT
+					logPrint("ROUTE CHANGE", map[string]interface{}{
+						"mode":  _connectMode.String(),
+						"count": retryCount,
+					})
+					printRoute(_connectMode, addr)
+					goto retry
+				} else if connectMode == model.CONNECT_MODE_DIRECT {
+					connectAddr = next_proxy
+					_connectMode = model.CONNECT_MODE_PROXY
+					logPrint("ROUTE CHANGE", map[string]interface{}{
+						"mode":  _connectMode.String(),
+						"count": retryCount,
+					})
+					printRoute(_connectMode, addr)
+					goto retry
+				}
+			}
+		}
+
+		return nil, e
+	}
+	if retryCount > 0 {
+		connectMode = _connectMode
+	}
+
+	if connectMode == model.CONNECT_MODE_PROXY && !isForceDirect {
+		err := proxyConnect(n, addr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	logPrint("CONNECT", "OK")
+	return n, nil
 }
 
 func isContainIp(cidr, ip string) bool {
