@@ -6,6 +6,7 @@ build:
 build-all-platform:
 	make build-mac
 	make build-windows
+	make build-linux
 
 build-mac:
 	env GOOS=darwin go build -o dist/escape-proxy-mac
